@@ -1,0 +1,485 @@
+{
+  "name": "Pretend I was here",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const formData = $input.all()[0].json;\n\n// 检查是否有二进制图片数据\nconst binaryData = $input.all()[0].binary;\n\n// 如果有二进制图片数据，优先使用\nlet userPhoto;\nif (binaryData && binaryData.userPhoto) {\n  // 将二进制数据转换为base64\n  userPhoto = `data:${binaryData.userPhoto.mimeType};base64,${binaryData.userPhoto.data}`;\n} else if (formData.userPhoto) {\n  userPhoto = formData.userPhoto;\n} else {\n  throw new Error('Please upload a photo and fill in the Photo_Description information!');\n}\n\nif (!formData.Photo_Description) {\n  throw new Error('Please fill in the Photo_Description information!');\n}\n\n// Build processed data - 移除了style参数\nconst processedData = {\n  userPhoto: userPhoto,\n  Photo_Description: formData.Photo_Description,\n  additionalPrompt: formData.additionalPrompt || '',\n  timestamp: new Date().toISOString()\n};\n\nconsole.log('Form data validated successfully');\nreturn [{ \n  json: processedData,\n  binary: $input.all()[0].binary // 保留二进制数据\n}];"
+      },
+      "id": "d30bb195-414e-43bb-a210-448f4e3e78b1",
+      "name": "Validate Input Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "formTitle": "Pretend I was here.",
+        "formDescription": "Upload your photo and desired Description, AI will create a realistic 'travel photo' for you!",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "userPhoto",
+              "fieldType": "file",
+              "multipleFiles": false,
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Photo_Description",
+              "fieldType": "textarea",
+              "placeholder": "Please describe the image you want, e.g., \"feeding pigeons in the park\", \"spreading arms on the grassland looking into the distance",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Language",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "English"
+                  },
+                  {
+                    "option": "中文简体"
+                  },
+                  {
+                    "option": "日本語"
+                  },
+                  {
+                    "option": "Korean"
+                  },
+                  {
+                    "option": "Español"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "buttonLabel": "Start"
+        }
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        32,
+        736
+      ],
+      "id": "f1faba2c-95af-4c65-87de-11ff5e6085b4",
+      "name": "On form submission",
+      "webhookId": "b212649e-b4ef-4db1-affb-b3090208029c"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gemini-2.5-flash-image-preview",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        688,
+        944
+      ],
+      "id": "16c65228-4ef2-47d0-9f1d-f5daa102b9bf",
+      "name": "gemini-2.5-flash-image",
+      "credentials": {
+        "openAiApi": {
+          "id": "oAJJMPdUtQo3gn3q",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.aiPrompt }}",
+        "options": {
+          "passthroughBinaryImages": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        688,
+        736
+      ],
+      "id": "e61ecfe9-6242-474e-a868-903cac2a7f03",
+      "name": "generate image agent"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "output",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        736
+      ],
+      "id": "7a1d4963-fa1d-4c9c-8b46-4df5a074f0c3",
+      "name": "content extract image1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 筛选包含image_url字段的item\nreturn items.filter(item => {\n  return item.json.image_url !== undefined;\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        736
+      ],
+      "id": "638bc5b9-df29-4b4e-916c-9d3101bb9ea5",
+      "name": "Get Image Items1"
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "respondWith": "showText",
+        "responseText": "={{ $json.htmlContent }}"
+      },
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.3,
+      "position": [
+        1168,
+        304
+      ],
+      "id": "95486f10-dcb4-40a6-97ba-233370db7128",
+      "name": "Form",
+      "webhookId": "45a00631-6838-4409-b026-c95f4cdb7374"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "406fb9f3-db45-47fb-a307-1b242423303e",
+              "name": "html_content",
+              "value": "={{ $json.htmlContent }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1168,
+        128
+      ],
+      "id": "70219f9e-a719-45f1-9b66-613ac4332b1f",
+      "name": "Markdown Output"
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "=image_url.url",
+        "binaryPropertyName": "image_output",
+        "options": {
+          "fileName": "image.png",
+          "mimeType": "image/png"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1360,
+        736
+      ],
+      "id": "3ac365a5-84da-4e96-92cd-6e7a849c88a4",
+      "name": "Convert base64 to File1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.socialMediaPrompt }}",
+        "options": {
+          "passthroughBinaryImages": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        432,
+        128
+      ],
+      "id": "4e9c1996-e9df-4fb4-8e6f-3e155589107e",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 第二个节点：AI提示词构建（使用固定专业提示词）\nconst inputData = $input.all()[0].json;\nconst binaryData = $input.all()[0].binary;\n\n// 调试信息\nconsole.log('=== 数据格式检查 ===');\nconsole.log('Input data keys:', Object.keys(inputData));\nconsole.log('Binary data keys:', binaryData ? Object.keys(binaryData) : 'No binary data');\nconsole.log('UserPhoto type:', typeof inputData.userPhoto);\nconsole.log('UserPhoto length:', inputData.userPhoto ? inputData.userPhoto.length : 'No photo');\n\n// 检查图片格式\nif (inputData.userPhoto && inputData.userPhoto.startsWith('data:')) {\n  console.log('Photo is base64 format');\n} else if (inputData.userPhoto) {\n  console.log('Photo data format unknown');\n}\n\n// 固定的专业AI提示词\nconst aiPrompt = `Create a hyper-realistic, seamlessly integrated composite image where the person from the uploaded photo is naturally placed and interacting with the environment of **${inputData.Photo_Description}**. The final output must achieve photographic authenticity, with particular excellence in facial detail reconstruction and environmental cohesion.\n\n**1. Core Scene & Subject Directive**\n*   **Subject Integration:** The person must be physically and visually integrated into ${inputData.Photo_Description}. Achieve this by:\n    *   **Perspective & Scale:** Calculate and apply accurate relative scale and single-point perspective consistent with the person's position in the Photo_Description scene.\n    *   **Environmental Interaction:** Adapt the person's posture to suggest natural interaction with the environment (e.g., weight distribution on feet adjusted for ground slope, gaze direction towards a point of interest within the scene, clothing subtly affected by the ambient environment like wind or humidity).\n*   **Facial Generation Quality:** Generate the person's face with ultra-high fidelity, focusing on:\n    *   **Detail Rendering:** **8k resolution, ultra detailed, sharp focus** on facial features. Accurately render skin texture, including fine pores, natural skin blemishes, and subcutaneous details under the specific lighting conditions of the scene.\n    *   **Lighting Consistency:** Analyze the primary light source in ${inputData.Photo_Description} (e.g., \"the afternoon sun from the upper left\" or \"diffused overcast light\"). Apply identical light angle, quality (hard/soft), color temperature (warm/cool), and intensity to the person's face and body. Generate **physically accurate shadows** that fall from the person onto the ground/objects and vice versa, matching the shadow length and softness present in the Photo_Description image.\n    *   **Feature Preservation:** Keep the facial structure, distinctive features (e.g., eye shape, nose profile, lip contour), and expression **completely recognizable and true to the original photo**, while naturally adapting the expression to the new context (e.g., a relaxed smile for a beach scene).\n\n**2. Style, Aesthetics & Composition Directive**\n*   **Art Style:** **Photorealistic, professional photography.** Style should emulate a high-end travel or portrait photograph taken on location.\n*   **Color & Palette:** Perform automatic color grading to unify the color palette. Ensure the person's skin tones, hair color, and clothing hues are harmonized with the overall color mood and saturation levels of ${inputData.Photo_Description}.\n*   **Composition:** Use a balanced composition. The person should be a natural focal point within the environment, following rules of thirds if appropriate, without appearing centrally \"pasted.\"\n\n**3. Technical Quality & Render Parameters**\n*   **Image Quality:** **Masterpiece, best quality, professional photo shoot.**\n*   **Rendering Suggestions (for systems that accept parameters):** \\`Steps: 80-100, Guidance Scale: 7.5-8.5, High-Res Fix: Enabled\\`.\n*   **Enhanced Negative Prompt:** **Avoid:** blurry, distorted face, ugly, deformed iris, asymmetric eyes, extra fingers, mutated hands, poorly drawn hands, bad anatomy, mismatched lighting, obvious compositing, pasted look, unnatural shadow, glossy plastic skin, airbrushed skin, cartoon, painting, drawing, CGI, 3D render, watermark, signature, text, frame, low resolution, JPEG artifacts, noise, grain.\n\n${inputData.additionalPrompt ? `**4. Additional User Requirements:**\\n${inputData.additionalPrompt}` : ''}\n\n**Final Objective:** The viewer should have zero doubt that the photograph was taken of this person at the actual location of ${inputData.Photo_Description}. All elements must coalesce into a single, coherent, and convincing visual truth.`;\n\nconsole.log('=== AI提示词 ===');\nconsole.log('Generated AI prompt:', aiPrompt);\n\n// 构建AI请求数据 - 图片字段原样使用，不做任何格式转换\nconst requestData = {\n  input: {\n    image: inputData.userPhoto, // 原样使用，不修改格式\n    prompt: aiPrompt,\n    Photo_Description: inputData.Photo_Description,\n    negative_prompt: 'blurry, distorted, unnatural, disproportionate, perspective error, inconsistent lighting',\n    steps: 30,\n    cfg_scale: 7.5\n  }\n};\n\nconsole.log('=== 最终请求数据 ===');\nconsole.log('Request data structure:', Object.keys(requestData.input));\nconsole.log('Image field preserved as-is, type:', typeof requestData.input.image);\n\n// 返回结果 - 保持图片格式不变\nreturn [{ \n  json: {\n    ...inputData,           // 保留所有原始数据，包括原样图片\n    aiPrompt: aiPrompt,     // 添加AI提示词\n    requestData: requestData // 添加请求数据\n  },\n  binary: binaryData || {}  // 保持二进制数据不变\n}];\n"
+      },
+      "id": "7caab4ad-6a92-4f95-8e62-eec165c237df",
+      "name": "Build AI Image Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code节点：多语言多平台社交媒体文案生成AI提示词\n// 输入：包含图片数据、目标语言和平台偏好的JSON对象\n// 输出：结构化的多语言多平台AI提示词\n\nconst inputData = $input.all()[0].json;\nconst binaryData = $input.all()[0].binary;\n\n// 调试信息\nconsole.log('=== 数据格式检查 ===');\nconsole.log('Input data keys:', Object.keys(inputData));\nconsole.log('Language setting:', $('On form submission').first().json.Language || '未指定');\nconsole.log('Target platforms:', inputData.platforms || '未指定');\n\n// 根据输入语言设置目标语言，默认英文\nconst targetLanguage = $('On form submission').first().json.Language || 'English';\nconst targetPlatforms = inputData.platforms || ['facebook', 'x', 'instagram'];\n\n// 构建多语言多平台社交媒体文案生成提示词\nconst socialMediaPrompt = `You are an expert multilingual social media content creator and visual storyteller. Your task is to analyze the provided image and generate engaging, platform-optimized social media posts in **${targetLanguage}** language for the following platforms: ${targetPlatforms.join(', ')}.\n\n## LANGUAGE REQUIREMENT:\n- **Primary Language:** All output text must be in **${targetLanguage}** language\n- **Cultural Adaptation:** Adapt idioms, expressions, and cultural references to suit the target language audience\n- **Localization:** Ensure date formats, measurements, and currency references are appropriate for the target language region\n\n## IMAGE ANALYSIS REQUIREMENTS:\n1. **Visual Elements Recognition:**\n   - Identify the main subject(s) and background elements\n   - Analyze lighting conditions, weather, and time of day\n   - Recognize facial expressions, body language, and clothing styles\n   - Note any significant objects, colors, or visual patterns\n\n2. **Contextual Understanding:**\n   - Infer the likely setting/environment (urban, natural, indoor, etc.)\n   - Determine the mood/atmosphere conveyed by the image\n   - Identify potential activities or events depicted\n   - Consider cultural or seasonal elements if present\n\n## PLATFORM-SPECIFIC CONTENT GENERATION:\n\n### A. Facebook Content Strategy:\n**Platform Characteristics:** Facebook is ideal for longer-form content, community building, and sharing life updates[7](@ref). The audience tends to be diverse in age, with a focus on personal connections and family-oriented content.\n**Content Requirements:**\n- Write in a conversational, relatable tone\n- Include detailed descriptions that tell a story\n- Encourage community engagement through questions and discussions\n- Use appropriate hashtags (2-3 relevant ones)\n- Consider including a call-to-action for sharing or commenting\n\n### B. X (Twitter) Content Strategy:\n**Platform Characteristics:** X is fast-paced with character limitations, focusing on real-time updates, news, and concise opinions[7](@ref). The platform favors brevity and wit.\n**Content Requirements:**\n- Keep content concise and to the point (within character limits)\n- Use attention-grabbing opening lines\n- Incorporate relevant trending topics or hashtags when appropriate\n- Include a clear link or reference if applicable\n- Encourage retweets and quick interactions\n\n### C. Instagram Content Strategy:\n**Platform Characteristics:** Instagram is highly visual with a focus on aesthetics, lifestyle, and visual storytelling[6](@ref)[8](@ref). The audience skews younger and values high-quality visuals.\n**Content Requirements:**\n- Focus on visual descriptions that complement the image\n- Use emojis strategically to enhance tone\n- Include relevant and popular hashtags (5-10 appropriate ones)\n- Write captions that encourage saves and shares\n- Consider Instagram Stories format with shorter, more casual text\n\n## CONTENT GENERATION GUIDELINES:\n\n### 1. Core Content Requirements:\n- **Engaging Hook:** Start with a compelling opening that grabs attention within 3 seconds[6](@ref)\n- **Emotional Connection:** Create content that resonates emotionally with the target audience\n- **Visual Description:** Incorporate vivid descriptions that complement the image\n- **Value Proposition:** Clearly communicate what value the content provides\n\n### 2. Platform Optimization:\n- **Length Adaptation:** Adjust content length according to each platform's norms\n- **Structure Variation:** Use appropriate formatting (paragraphs, line breaks, lists)\n- **Engagement Elements:** Include platform-specific calls-to-action\n- **Tone Adjustment:** Match the tone to each platform's culture\n\n### 3. Safety & Compliance:\n**STRICTLY AVOID:**\n- Religious references or symbolism\n- Terrorist or violent content\n- Pornographic or sexually suggestive material\n- Hate speech or discriminatory language\n- False or misleading claims\n- Copyright infringement risks\n\n## OUTPUT FORMAT:\nGenerate social media posts in the following JSON structure for each platform:\n\n\\`\\`\\`json\n{\n  \"language\": \"${targetLanguage}\",\n  \"platforms\": {\n    \"facebook\": {\n      \"headline\": \"Attention-grabbing title for Facebook\",\n      \"main_content\": \"Complete Facebook post content (200-400 words)\",\n      \"hashtags\": [\"#relevant\", \"#hashtags\"],\n      \"engagement_question\": \"A question to encourage Facebook community interaction\",\n      \"optimal_post_time\": \"Suggested posting time based on content analysis\"\n    },\n    \"x_twitter\": {\n      \"tweet_content\": \"Concise tweet within character limits\",\n      \"hashtags\": [\"#trending\", \"#relevant\"],\n      \"thread_suggestion\": \"Optional: suggestion for tweet thread if content is complex\",\n      \"engagement_tip\": \"Tip for maximizing retweets and replies\"\n    },\n    \"instagram\": {\n      \"caption\": \"Instagram caption with visual focus\",\n      \"hashtags\": [\"#hashtag1\", \"#hashtag2\", \"#hashtag3\", \"#hashtag4\", \"#hashtag5\"],\n      \"story_suggestion\": \"Short text suggestion for Instagram Stories\",\n      \"reels_idea\": \"Optional: idea for Instagram Reels if applicable\"\n    }\n  },\n  \"content_analysis\": {\n    \"detected_mood\": \"The primary mood identified from the image\",\n    \"key_visual_elements\": [\"element1\", \"element2\", \"element3\"],\n    \"platform_recommendations\": {\n      \"best_platform\": \"Platform where this content would perform best\",\n      \"reason\": \"Explanation based on visual and content analysis\"\n    }\n  },\n  \"localization_notes\": \"Any cultural adaptation notes for ${targetLanguage} audience\"\n}\n\\`\\`\\`\n\n## ADDITIONAL CONSIDERATIONS:\n- If the image contains people, ensure descriptions are respectful and avoid assumptions\n- Consider current trends and seasonal relevance when crafting the message\n- Balance creativity with authenticity - posts should feel genuine, not forced\n- Optimize for shareability and virality potential on each platform\n- Respect each platform's community guidelines and best practices\n\nNow, analyze the provided image and generate multilingual, multi-platform social media content that would perform well on Facebook, X, and Instagram. Focus on creating platform-specific content that is both visually descriptive and emotionally engaging, while strictly adhering to all safety guidelines and language requirements.`;\n\nconsole.log('=== 生成的提示词 ===');\nconsole.log('Target language:', targetLanguage);\nconsole.log('Target platforms:', targetPlatforms);\nconsole.log('Prompt length:', socialMediaPrompt.length, 'characters');\n\n// 构建完整的请求数据\nconst requestData = {\n  input: {\n    image_data: inputData.imageData || binaryData,\n    prompt: socialMediaPrompt,\n    language: targetLanguage,\n    platforms: targetPlatforms,\n    additional_context: inputData.context || \"Multilingual social media content\",\n    safety_filters: {\n      exclude_religious: true,\n      exclude_violent: true,\n      exclude_explicit: true,\n      exclude_hate_speech: true,\n      language_compliance: targetLanguage\n    },\n    generation_config: {\n      temperature: 0.7,\n      max_output_tokens: 1500,\n      top_p: 0.9,\n      platform_optimization: true\n    }\n  }\n};\n\n// 返回结果\nreturn [{ \n  json: {\n    ...inputData,\n    socialMediaPrompt: socialMediaPrompt,\n    requestData: requestData,\n    metadata: {\n      generated_at: new Date().toISOString(),\n      prompt_type: \"multilingual_social_media_content\",\n      target_language: targetLanguage,\n      target_platforms: targetPlatforms,\n      content_focus: \"platform_specific_visual_storytelling\",\n      n8n_integration: \"Supports dynamic language switching as per n8n multi-language workflow capabilities[1](@ref)\"\n    }\n  },\n  binary: binaryData || {}\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        64,
+        128
+      ],
+      "id": "59a79c0f-0c17-413d-8d30-546db782d4f8",
+      "name": "Build AI Word Prompt"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code节点：动态生成社交媒体文案展示HTML页面\n// 输入：包含图片数据、社交媒体文案JSON、目标语言的JSON对象\n// 输出：完整的HTML页面内容\n\nconst inputData = $input.all()[0].json;\n\n// 解析返回的JSON数据\nlet parsedData;\ntry {\n    if (inputData.output) {\n        const jsonStr = inputData.output.replace(/```json\\n|\\n```/g, '').trim();\n        parsedData = JSON.parse(jsonStr);\n    } else if (inputData.language) {\n        parsedData = inputData;\n    } else {\n        parsedData = inputData;\n    }\n} catch (error) {\n    parsedData = { language: 'en-US', platforms: {} };\n}\n\n// 从表单获取语言设置\nlet targetLanguage;\ntry {\n    const formData = $('On form submission')?.first()?.json || {};\n    targetLanguage = formData.Language || parsedData.language || 'en-US';\n} catch (error) {\n    targetLanguage = parsedData.language || 'en-US';\n}\n\n// 首先，将Base64数据从输入中提取出来，赋值给一个变量\nconst base64String = $('Build AI Word Prompt').first().json.requestData.input.image_data.image_output.data;\n\n// 提取关键数据\nconst imageData = `data:image/jpeg;base64,${base64String}`;\n\n// 使用解析后的数据\nconst socialContent = parsedData || {};\n\n// 多语言文本配置\nconst languageTexts = {\n    'English': {\n        title: 'Social Media Content',\n        downloadBtn: 'Download Image',\n        copyBtn: 'Copy',\n        facebookLabel: 'Facebook Post',\n        twitterLabel: 'X (Twitter) Post',\n        instagramLabel: 'Instagram Post',\n        headlineLabel: 'Headline',\n        contentLabel: 'Content',\n        hashtagsLabel: 'Hashtags',\n        questionLabel: 'Engagement Question',\n        postTimeLabel: 'Optimal Post Time',\n        generatedContentTitle: 'Generated Content',\n        storySuggestionLabel: 'Story Suggestion',\n        reelsIdeaLabel: 'Reels Idea',\n        engagementTipLabel: 'Engagement Tip'\n    },\n    '中文简体': {\n        title: '社交媒体文案',\n        downloadBtn: '下载图片',\n        copyBtn: '复制',\n        facebookLabel: 'Facebook文案',\n        twitterLabel: 'X (Twitter)文案',\n        instagramLabel: 'Instagram文案',\n        headlineLabel: '标题',\n        contentLabel: '内容',\n        hashtagsLabel: '话题标签',\n        questionLabel: '互动问题',\n        postTimeLabel: '最佳发布时间',\n        generatedContentTitle: '生成内容',\n        storySuggestionLabel: '故事建议',\n        reelsIdeaLabel: 'Reels创意',\n        engagementTipLabel: '互动建议'\n    },\n    '日本語': {\n        title: 'ソーシャルメディアコンテンツ',\n        downloadBtn: '画像をダウンロード',\n        copyBtn: 'コピー',\n        facebookLabel: 'Facebook投稿',\n        twitterLabel: 'X (Twitter)投稿',\n        instagramLabel: 'Instagram投稿',\n        headlineLabel: '見出し',\n        contentLabel: '内容',\n        hashtagsLabel: 'ハッシュタグ',\n        questionLabel: 'エンゲージメント質問',\n        postTimeLabel: '最適投稿時間',\n        generatedContentTitle: '生成コンテンツ',\n        storySuggestionLabel: 'ストーリー提案',\n        reelsIdeaLabel: 'Reelsアイデア',\n        engagementTipLabel: 'エンゲージメントのヒント'\n    },\n    'Korean': {\n        title: '소셜 미디어 콘텐츠',\n        downloadBtn: '이미지 다운로드',\n        copyBtn: '복사',\n        facebookLabel: 'Facebook 게시물',\n        twitterLabel: 'X (Twitter) 게시물',\n        instagramLabel: 'Instagram 게시물',\n        headlineLabel: '제목',\n        contentLabel: '내용',\n        hashtagsLabel: '해시태그',\n        questionLabel: '참여 질문',\n        postTimeLabel: '최적 게시 시간',\n        generatedContentTitle: '생성된 콘텐츠',\n        storySuggestionLabel: '스토리 제안',\n        reelsIdeaLabel: '릴스 아이디어',\n        engagementTipLabel: '참여 팁'\n    },\n    'Español': {\n        title: 'Contenido de Redes Sociales',\n        downloadBtn: 'Descargar Imagen',\n        copyBtn: 'Copiar',\n        facebookLabel: 'Publicación de Facebook',\n        twitterLabel: 'Publicación de X (Twitter)',\n        instagramLabel: 'Publicación de Instagram',\n        headlineLabel: 'Título',\n        contentLabel: 'Contenido',\n        hashtagsLabel: 'Etiquetas',\n        questionLabel: 'Pregunta de Interacción',\n        postTimeLabel: 'Tiempo Óptimo de Publicación',\n        generatedContentTitle: 'Contenido Generado',\n        storySuggestionLabel: 'Sugerencia de Historia',\n        reelsIdeaLabel: 'Idea de Reels',\n        engagementTipLabel: 'Consejo de Interacción'\n    }\n};\n\n// 获取当前语言的文本\nconst texts = languageTexts[targetLanguage] || languageTexts['en-US'];\n\n// 辅助函数：安全地获取嵌套属性\nconst getSafe = (obj, path, defaultValue = '') => {\n    return path.split('.').reduce((acc, key) => {\n        return acc && acc[key] !== undefined ? acc[key] : defaultValue;\n    }, obj);\n};\n\n// 构建HTML页面\nconst htmlContent = `\n<!DOCTYPE html>\n<html lang=\"${targetLanguage.split('-')[0]}\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>${texts.title}</title>\n    <style>\n        :root {\n            --facebook-color: #1877f2;\n            --twitter-color: #000000;\n            --instagram-gradient: linear-gradient(45deg, #405de6, #5851db, #833ab4, #c13584, #e1306c, #fd1d1d);\n            --success-color: #10b981;\n            --primary-color: #3b82f6;\n            --hashtag-color: #8b5cf6;\n            --border-color: #e2e8f0;\n            --text-primary: #4b5563;\n            --bg-light: #f8fafc;\n            --bg-white: #ffffff;\n            --sidebar-width: 40%;\n            --content-width: 60%;\n        }\n        \n        * {\n            margin: 0;\n            padding: 0;\n            box-sizing: border-box;\n        }\n        \n        body {\n            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\n            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n            min-height: 100vh;\n            color: var(--text-primary);\n            line-height: 1.4;\n            overflow: hidden;\n        }\n        \n        /* 主容器 - 左右布局 */\n        .app-container {\n            display: flex;\n            min-height: 100vh;\n            width: 100%;\n        }\n        \n        /* 左侧图片区域 */\n        .left-image-section {\n            width: var(--sidebar-width);\n            background: var(--bg-white);\n            display: flex;\n            flex-direction: column;\n            align-items: center;\n            padding: 20px;\n            box-shadow: 2px 0 10px rgba(0,0,0,0.05);\n            z-index: 10;\n            overflow-y: auto;\n        }\n        \n        .image-container {\n            display: flex;\n            flex-direction: column;\n            align-items: center;\n            width: 100%;\n            max-width: 500px;\n            gap: 20px;\n        }\n        \n        .image-preview {\n            width: 100%;\n            border-radius: 12px;\n            overflow: hidden;\n            box-shadow: 0 10px 30px rgba(0,0,0,0.15);\n        }\n        \n        .image-preview img {\n            width: 100%;\n            height: auto;\n            display: block;\n            max-width: 100%;\n        }\n        \n        .download-btn {\n            background: var(--success-color);\n            color: white;\n            border: none;\n            padding: 12px 24px;\n            border-radius: 50px;\n            font-size: 0.9rem;\n            font-weight: 600;\n            cursor: pointer;\n            transition: all 0.2s ease;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            gap: 8px;\n            width: 100%;\n            max-width: 250px;\n        }\n        \n        .download-btn:hover {\n            transform: translateY(-2px);\n            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);\n        }\n        \n        /* 右侧内容区域 */\n        .content-area {\n            width: var(--content-width);\n            overflow-y: auto;\n            background: var(--bg-white);\n            padding: 20px 30px;\n            height: 100vh;\n        }\n        \n        .content-header {\n            margin-bottom: 18px;\n            padding-bottom: 10px;\n            border-bottom: 1px solid var(--border-color);\n        }\n        \n        .content-header h2 {\n            color: #4f46e5;\n            font-size: 1.2rem;\n            margin-bottom: 4px;\n            font-weight: 600;\n        }\n        \n        /* 平台卡片容器 */\n        .platforms-container {\n            display: flex;\n            flex-direction: column;\n            gap: 16px;\n        }\n        \n        /* 自定义滚动条 */\n        .content-area::-webkit-scrollbar,\n        .left-image-section::-webkit-scrollbar {\n            width: 6px;\n        }\n        \n        .content-area::-webkit-scrollbar-track,\n        .left-image-section::-webkit-scrollbar-track {\n            background: var(--bg-light);\n            border-radius: 3px;\n        }\n        \n        .content-area::-webkit-scrollbar-thumb,\n        .left-image-section::-webkit-scrollbar-thumb {\n            background: linear-gradient(90deg, #4f46e5, #7c3aed);\n            border-radius: 3px;\n        }\n        \n        /* 平台卡片 */\n        .platform-card {\n            background: var(--bg-white);\n            border-radius: 10px;\n            padding: 16px;\n            box-shadow: 0 3px 10px rgba(0,0,0,0.05);\n            border: 1px solid var(--border-color);\n            transition: transform 0.2s ease, box-shadow 0.2s ease;\n        }\n        \n        .platform-card:hover {\n            transform: translateY(-2px);\n            box-shadow: 0 5px 15px rgba(0,0,0,0.08);\n        }\n        \n        .platform-header {\n            display: flex;\n            justify-content: space-between;\n            align-items: center;\n            margin-bottom: 12px;\n            padding-bottom: 10px;\n            border-bottom: 1px solid #f1f5f9;\n        }\n        \n        .platform-title {\n            display: flex;\n            align-items: center;\n            gap: 8px;\n        }\n        \n        .platform-icon {\n            width: 28px;\n            height: 28px;\n            border-radius: 6px;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            font-weight: bold;\n            color: white;\n            font-size: 0.85rem;\n        }\n        \n        .platform-icon.facebook { background: var(--facebook-color); }\n        .platform-icon.twitter { background: var(--twitter-color); }\n        .platform-icon.instagram { \n            background: var(--instagram-gradient);\n            background-size: 200% 200%;\n        }\n        \n        .platform-title h3 {\n            font-size: 0.95rem;\n            color: #1f2937;\n            font-weight: 600;\n        }\n        \n        .copy-btn {\n            background: var(--primary-color);\n            color: white;\n            border: none;\n            padding: 6px 12px;\n            border-radius: 5px;\n            font-weight: 600;\n            cursor: pointer;\n            font-size: 0.8rem;\n            transition: all 0.2s ease;\n        }\n        \n        .copy-btn:hover {\n            background: #2563eb;\n            transform: scale(1.03);\n        }\n        \n        /* 内容项 - 缩小间距和字体 */\n        .content-item {\n            margin-bottom: 12px;\n        }\n        \n        .content-label {\n            font-weight: 600;\n            color: var(--text-primary);\n            margin-bottom: 4px;\n            display: block;\n            font-size: 0.85rem;\n        }\n        \n        .content-value {\n            background: var(--bg-light);\n            padding: 10px;\n            border-radius: 6px;\n            border: 1px solid var(--border-color);\n            line-height: 1.4;\n            white-space: pre-wrap;\n            font-size: 0.82rem;\n        }\n        \n        /* 标签样式 */\n        .hashtags-container {\n            display: flex;\n            flex-wrap: wrap;\n            gap: 5px;\n            margin-top: 3px;\n        }\n        \n        .hashtag {\n            background: var(--hashtag-color);\n            color: white;\n            padding: 3px 8px;\n            border-radius: 12px;\n            font-size: 0.75rem;\n            font-weight: 500;\n        }\n        \n        /* 响应式设计 - 平板 */\n        @media (max-width: 1024px) {\n            :root {\n                --sidebar-width: 35%;\n                --content-width: 65%;\n            }\n        }\n        \n        /* 响应式设计 - 较小平板 */\n        @media (max-width: 768px) {\n            :root {\n                --sidebar-width: 100%;\n                --content-width: 100%;\n            }\n            \n            .app-container {\n                flex-direction: column;\n                overflow-y: auto;\n            }\n            \n            .left-image-section {\n                width: 100%;\n                height: auto;\n                padding: 15px;\n                max-height: 60vh;\n            }\n            \n            .content-area {\n                width: 100%;\n                height: auto;\n                overflow-y: visible;\n                padding: 15px;\n            }\n            \n            .image-preview {\n                max-width: 100%;\n            }\n            \n            .platform-card {\n                padding: 14px;\n            }\n        }\n        \n        /* 响应式设计 - 手机 */\n        @media (max-width: 480px) {\n            .platform-header {\n                flex-direction: column;\n                align-items: flex-start;\n                gap: 10px;\n            }\n            \n            .copy-btn {\n                align-self: stretch;\n                text-align: center;\n            }\n            \n            .platform-title h3 {\n                font-size: 0.9rem;\n            }\n            \n            .content-header h2 {\n                font-size: 1.1rem;\n            }\n        }\n        \n        /* 大屏幕优化 */\n        @media (min-width: 1600px) {\n            :root {\n                --sidebar-width: 35%;\n                --content-width: 65%;\n            }\n            \n            .app-container {\n                max-width: 1600px;\n                margin: 20px auto;\n                border-radius: 16px;\n                overflow: hidden;\n                box-shadow: 0 15px 40px rgba(0,0,0,0.2);\n                min-height: calc(100vh - 40px);\n            }\n            \n            .content-area {\n                padding: 25px 35px;\n            }\n            \n            .left-image-section {\n                padding: 25px;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"app-container\">\n        <!-- 左侧图片区域 -->\n        <section class=\"left-image-section\">\n            <div class=\"image-container\">\n                <div class=\"image-preview\">\n                    <img id=\"mainImage\" src=\"${imageData}\" alt=\"Generated Social Media Image\">\n                </div>\n                <button class=\"download-btn\" onclick=\"downloadImage()\">\n                    <svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\">\n                        <path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"></path>\n                        <polyline points=\"7 10 12 15 17 10\"></polyline>\n                        <line x1=\"12\" y1=\"15\" x2=\"12\" y2=\"3\"></line>\n                    </svg>\n                    ${texts.downloadBtn}\n                </button>\n            </div>\n        </section>\n        \n        <!-- 右侧内容区域 -->\n        <main class=\"content-area\">\n            <div class=\"content-header\">\n                <h2>${texts.generatedContentTitle}</h2>\n            </div>\n            \n            <div class=\"platforms-container\">\n                <!-- Facebook文案 -->\n                ${getSafe(socialContent, 'platforms.facebook') ? `\n                <div class=\"platform-card\">\n                    <div class=\"platform-header\">\n                        <div class=\"platform-title\">\n                            <div class=\"platform-icon facebook\">F</div>\n                            <h3>${texts.facebookLabel}</h3>\n                        </div>\n                        <button class=\"copy-btn\" onclick=\"copyToClipboard('facebook-content')\">\n                            ${texts.copyBtn}\n                        </button>\n                    </div>\n                    \n                    <div class=\"content-item\">\n                        <span class=\"content-label\">${texts.headlineLabel}:</span>\n                        <div class=\"content-value\" id=\"facebook-headline\">${getSafe(socialContent, 'platforms.facebook.headline', '')}</div>\n                    </div>\n                    \n                    <div class=\"content-item\">\n                        <span class=\"content-label\">${texts.contentLabel}:</span>\n                        <div class=\"content-value\" id=\"facebook-content\">${getSafe(socialContent, 'platforms.facebook.main_content', '').replace(/\\n/g, '<br>')}</div>\n                    </div>\n                    \n                    ${getSafe(socialContent, 'platforms.facebook.hashtags') ? `\n                    <div class=\"content-item\">\n                        <span class=\"content-label\">${texts.hashtagsLabel}:</span>\n                        <div class=\"hashtags-container\">\n                            ${getSafe(socialContent, 'platforms.facebook.hashtags', []).map(tag => `\n                                <span class=\"hashtag\">${tag}</span>\n                            `).join('')}\n                        </div>\n                    </div>\n                    ` : ''}\n                    \n                    ${getSafe(socialContent, 'platforms.facebook.engagement_question') ? `\n                    <div class=\"content-item\">\n                        <span class=\"content-label\">${texts.questionLabel}:</span>\n                        <div class=\"content-value\">${getSafe(socialContent, 'platforms.facebook.engagement_question')}</div>\n                    </div>\n                    ` : ''}\n                    \n                    ${getSafe(socialContent, 'platforms.facebook.optimal_post_time') ? `\n                    <div class=\"content-item\">\n                        <span class=\"content-label\">${texts.postTimeLabel}:</span>\n                        <div class=\"content-value\">${getSafe(socialContent, 'platforms.facebook.optimal_post_time')}</div>\n                    </div>\n                    ` : ''}\n                </div>\n                ` : ''}\n                \n                <!-- X (Twitter)文案 -->\n                ${getSafe(socialContent, 'platforms.x_twitter') ? `\n                <div class=\"platform-card\">\n                    <div class=\"platform-header\">\n                        <div class=\"platform-title\">\n                            <div class=\"platform-icon twitter\">X</div>\n                            <h3>${texts.twitterLabel}</h3>\n                        </div>\n                        <button class=\"copy-btn\" onclick=\"copyToClipboard('twitter-content')\">\n                            ${texts.copyBtn}\n                        </button>\n                    </div>\n                    \n                    <div class=\"content-item\">\n                        <span class=\"content-label\">${texts.contentLabel}:</span>\n                        <div class=\"content-value\" id=\"twitter-content\">${getSafe(socialContent, 'platforms.x_twitter.tweet_content', '')}</div>\n                    </div>\n                    \n                    ${getSafe(socialContent, 'platforms.x_twitter.hashtags') ? `\n                    <div class=\"content-item\">\n                        <span class=\"content-label\">${texts.hashtagsLabel}:</span>\n                        <div class=\"hashtags-container\">\n                            ${getSafe(socialContent, 'platforms.x_twitter.hashtags', []).map(tag => `\n                                <span class=\"hashtag\">${tag}</span>\n                            `).join('')}\n                        </div>\n                    </div>\n                    ` : ''}\n                    \n                    ${getSafe(socialContent, 'platforms.x_twitter.engagement_tip') ? `\n                    <div class=\"content-item\">\n                        <span class=\"content-label\">${texts.engagementTipLabel}:</span>\n                        <div class=\"content-value\">${getSafe(socialContent, 'platforms.x_twitter.engagement_tip')}</div>\n                    </div>\n                    ` : ''}\n                </div>\n                ` : ''}\n                \n                <!-- Instagram文案 -->\n                ${getSafe(socialContent, 'platforms.instagram') ? `\n                <div class=\"platform-card\">\n                    <div class=\"platform-header\">\n                        <div class=\"platform-title\">\n                            <div class=\"platform-icon instagram\">IG</div>\n                            <h3>${texts.instagramLabel}</h3>\n                        </div>\n                        <button class=\"copy-btn\" onclick=\"copyToClipboard('instagram-content')\">\n                            ${texts.copyBtn}\n                        </button>\n                    </div>\n                    \n                    <div class=\"content-item\">\n                        <span class=\"content-label\">${texts.contentLabel}:</span>\n                        <div class=\"content-value\" id=\"instagram-content\">${getSafe(socialContent, 'platforms.instagram.caption', '').replace(/\\n/g, '<br>')}</div>\n                    </div>\n                    \n                    ${getSafe(socialContent, 'platforms.instagram.hashtags') ? `\n                    <div class=\"content-item\">\n                        <span class=\"content-label\">${texts.hashtagsLabel}:</span>\n                        <div class=\"hashtags-container\">\n                            ${getSafe(socialContent, 'platforms.instagram.hashtags', []).map(tag => `\n                                <span class=\"hashtag\">${tag}</span>\n                            `).join('')}\n                        </div>\n                    </div>\n                    ` : ''}\n                    \n                    ${getSafe(socialContent, 'platforms.instagram.story_suggestion') ? `\n                    <div class=\"content-item\">\n                        <span class=\"content-label\">${texts.storySuggestionLabel}:</span>\n                        <div class=\"content-value\">${getSafe(socialContent, 'platforms.instagram.story_suggestion')}</div>\n                    </div>\n                    ` : ''}\n                    \n                    ${getSafe(socialContent, 'platforms.instagram.reels_idea') ? `\n                    <div class=\"content-item\">\n                        <span class=\"content-label\">${texts.reelsIdeaLabel}:</span>\n                        <div class=\"content-value\">${getSafe(socialContent, 'platforms.instagram.reels_idea')}</div>\n                    </div>\n                    ` : ''}\n                </div>\n                ` : ''}\n            </div>\n        </main>\n    </div>\n\n    <script>\n        // 图片下载功能\n        function downloadImage() {\n            const image = document.getElementById('mainImage');\n            const link = document.createElement('a');\n            link.href = image.src;\n            link.download = 'social-media-image.jpg';\n            document.body.appendChild(link);\n            link.click();\n            document.body.removeChild(link);\n        }\n        \n        // 复制到剪贴板功能\n        function copyToClipboard(elementId) {\n            const element = document.getElementById(elementId);\n            const text = element.textContent || element.innerText;\n            \n            if (navigator.clipboard && window.isSecureContext) {\n                navigator.clipboard.writeText(text).then(() => {\n                    showCopySuccess();\n                }).catch(err => {\n                    fallbackCopy(text);\n                });\n            } else {\n                fallbackCopy(text);\n            }\n        }\n        \n        // 传统复制方法作为备选\n        function fallbackCopy(text) {\n            const textArea = document.createElement('textarea');\n            textArea.value = text;\n            textArea.style.cssText = 'position:fixed;top:0;left:0;width:2em;height:2em;padding:0;border:none;outline:none;box-shadow:none;background:transparent;';\n            \n            document.body.appendChild(textArea);\n            textArea.focus();\n            textArea.select();\n            \n            try {\n                const success = document.execCommand('copy');\n                if (success) {\n                    showCopySuccess();\n                }\n            } catch (err) {\n                console.error('复制失败:', err);\n            }\n            \n            document.body.removeChild(textArea);\n        }\n        \n        // 显示复制成功提示\n        function showCopySuccess() {\n            const notification = document.createElement('div');\n            notification.textContent = '复制成功！';\n            notification.style.cssText = 'position:fixed;top:16px;right:16px;background:#10b981;color:white;padding:10px 16px;border-radius:6px;z-index:1000;animation:slideIn 0.2s ease;font-size:0.85rem;';\n            \n            document.body.appendChild(notification);\n            \n            setTimeout(() => {\n                notification.style.animation = 'slideOut 0.2s ease';\n                setTimeout(() => {\n                    document.body.removeChild(notification);\n                }, 200);\n            }, 1500);\n        }\n        \n        // 添加CSS动画\n        const style = document.createElement('style');\n        style.textContent = \\`\n            @keyframes slideIn {\n                from { transform: translateX(100%); opacity: 0; }\n                to { transform: translateX(0); opacity: 1; }\n            }\n            @keyframes slideOut {\n                from { transform: translateX(0); opacity: 1; }\n                to { transform: translateX(100%); opacity: 0; }\n            }\n        \\`;\n        document.head.appendChild(style);\n        \n        // 页面加载完成后自动滚动到顶部\n        window.onload = function() {\n            window.scrollTo(0, 0);\n        };\n    </script>\n</body>\n</html>\n`;\n\n// 返回结果\nreturn [{ \n  json: {\n    ...inputData,\n    htmlContent: htmlContent,\n    parsedSocialContent: socialContent,\n    metadata: {\n      generated_at: new Date().toISOString(),\n      language: targetLanguage,\n      content_type: \"social_media_display\",\n      platforms_included: Object.keys(socialContent.platforms || {}),\n      html_size: htmlContent.length\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        128
+      ],
+      "id": "75283d0f-d160-4eef-a442-a3adbb69382d",
+      "name": "Html"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gemini-2.5-pro",
+          "mode": "id"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        304,
+        320
+      ],
+      "id": "e59321f5-f072-4cfd-8d1b-988674c9b42b",
+      "name": "gemini"
+    },
+    {
+      "parameters": {
+        "content": "## 处理图片及输入信息\n",
+        "height": 336,
+        "width": 608
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        560
+      ],
+      "typeVersion": 1,
+      "id": "47742df8-3532-4ffb-b264-d0b2e2a055f0",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## 生成图片并处理数据格式，方便后续动作\n",
+        "height": 528,
+        "width": 944,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        640,
+        560
+      ],
+      "typeVersion": 1,
+      "id": "76c45d7c-d339-46bd-9efc-301bc8f6fde5",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## 输出信息到html",
+        "height": 496,
+        "width": 688,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        720,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "0ab6c471-7022-4532-9c9b-24f421ffc4f5",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## 将图片传给AI 生成社交文案\n",
+        "height": 496,
+        "width": 688,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "e520e771-9f0a-4d54-9ab4-a59d39b00320",
+      "name": "Sticky Note3"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Validate Input Data": {
+      "main": [
+        [
+          {
+            "node": "Build AI Image Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Validate Input Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gemini-2.5-flash-image": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "generate image agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate image agent": {
+      "main": [
+        [
+          {
+            "node": "content extract image1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "content extract image1": {
+      "main": [
+        [
+          {
+            "node": "Get Image Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Image Items1": {
+      "main": [
+        [
+          {
+            "node": "Convert base64 to File1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert base64 to File1": {
+      "main": [
+        [
+          {
+            "node": "Build AI Word Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Html",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build AI Image Prompt": {
+      "main": [
+        [
+          {
+            "node": "generate image agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build AI Word Prompt": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Html": {
+      "main": [
+        [
+          {
+            "node": "Markdown Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gemini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "41e450df-8fc5-412d-b708-995dffbb2258",
+  "meta": {
+    "instanceId": "571ec23ec555288f49513ac121bba48440a081bd60649c25074da2db57cc89ee"
+  },
+  "id": "2zPSsSzua6c7KkQO",
+  "tags": []
+}
